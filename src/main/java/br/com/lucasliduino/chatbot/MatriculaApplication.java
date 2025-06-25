@@ -1,4 +1,3 @@
-// Pacote raiz da sua aplicação
 package br.com.lucasliduino.chatbot;
 
 import org.springframework.boot.SpringApplication;

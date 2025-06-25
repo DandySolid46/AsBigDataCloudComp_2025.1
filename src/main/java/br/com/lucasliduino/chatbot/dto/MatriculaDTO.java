@@ -1,4 +1,3 @@
-// Pacote da sua aplicação (ex: com.example.chatbot.dto)
 package br.com.lucasliduino.chatbot.dto;
 
 public class MatriculaDTO {

@@ -1,85 +1,53 @@
 const path = require('path');
-
-const dotenv = require('dotenv');
-// Import required bot configuration.
-const ENV_FILE = path.join(__dirname, '.env');
-dotenv.config({ path: ENV_FILE });
-
 const restify = require('restify');
 
-// Import required bot services.
-// See https://aka.ms/bot-services to learn more about the different parts of a bot.
-const {
-    CloudAdapter,
-    ConfigurationServiceClientCredentialFactory,
-    createBotFrameworkAuthenticationFromConfiguration
-} = require('botbuilder');
-
-// This bot's main dialog.
+const { BotFrameworkAdapter, ConversationState, UserState, MemoryStorage } = require('botbuilder');
 const { EchoBot } = require('./bot');
+const { EnrollmentDialog } = require('../dialogs/enrollmentDialog');
 
-// Create HTTP server
-const server = restify.createServer();
-server.use(restify.plugins.bodyParser());
+// Carrega as variáveis de ambiente.
+const ENV_FILE = path.join(__dirname, '.env');
+require('dotenv').config({ path: ENV_FILE });
 
-server.listen(process.env.port || process.env.PORT || 3978, () => {
-    console.log(`\n${ server.name } listening to ${ server.url }`);
-    console.log('\nGet Bot Framework Emulator: https://aka.ms/botframework-emulator');
-    console.log('\nTo talk to your bot, open the emulator select "Open Bot"');
+// Cria o adaptador do bot.
+const adapter = new BotFrameworkAdapter({
+    appId: process.env.MicrosoftAppId,
+    appPassword: process.env.MicrosoftAppPassword
 });
 
-const credentialsFactory = new ConfigurationServiceClientCredentialFactory({
-    MicrosoftAppId: process.env.MicrosoftAppId,
-    MicrosoftAppPassword: process.env.MicrosoftAppPassword,
-    MicrosoftAppType: process.env.MicrosoftAppType,
-    MicrosoftAppTenantId: process.env.MicrosoftAppTenantId
-});
-
-const botFrameworkAuthentication = createBotFrameworkAuthenticationFromConfiguration(null, credentialsFactory);
-
-// Create adapter.
-// See https://aka.ms/about-bot-adapter to learn more about adapters.
-const adapter = new CloudAdapter(botFrameworkAuthentication);
-
-// Catch-all for errors.
-const onTurnErrorHandler = async (context, error) => {
-    // This check writes out errors to console log .vs. app insights.
-    // NOTE: In production environment, you should consider logging this to Azure
-    //       application insights.
+adapter.onTurnError = async (context, error) => {
     console.error(`\n [onTurnError] unhandled error: ${ error }`);
-
-    // Send a trace activity, which will be displayed in Bot Framework Emulator
     await context.sendTraceActivity(
         'OnTurnError Trace',
         `${ error }`,
         'https://www.botframework.com/schemas/error',
         'TurnError'
     );
-
-    // Send a message to the user
     await context.sendActivity('The bot encountered an error or bug.');
     await context.sendActivity('To continue to run this bot, please fix the bot source code.');
 };
 
-// Set the onTurnError for the singleton CloudAdapter.
-adapter.onTurnError = onTurnErrorHandler;
+// Define o armazenamento em memória para o estado da conversa.
+const memoryStorage = new MemoryStorage();
+const conversationState = new ConversationState(memoryStorage);
+const userState = new UserState(memoryStorage);
 
-// Create the main dialog.
-const myBot = new EchoBot();
+// Cria a instância do diálogo de matrícula.
+const enrollmentDialog = new EnrollmentDialog();
+// Cria a instância do bot principal, passando os estados e o diálogo.
+const bot = new EchoBot(conversationState, userState, enrollmentDialog);
 
-// Listen for incoming requests.
-server.post('/api/messages', async (req, res) => {
-    // Route received a request to adapter for processing
-    await adapter.process(req, res, (context) => myBot.run(context));
+// Cria o servidor HTTP.
+const server = restify.createServer();
+server.listen(process.env.port || process.env.PORT || 3978, () => {
+    console.log(`\n${ server.name } listening to ${ server.url }`);
+    console.log('\nGet Bot Framework Emulator: https://aka.ms/botframework-emulator');
+    console.log('\nTo talk to your bot, open the emulator and point it at http://localhost:3978/api/messages');
 });
 
-// Listen for Upgrade requests for Streaming.
-server.on('upgrade', async (req, socket, head) => {
-    // Create an adapter scoped to this WebSocket connection to allow storing session data.
-    const streamingAdapter = new CloudAdapter(botFrameworkAuthentication);
-
-    // Set onTurnError for the CloudAdapter created for each connection.
-    streamingAdapter.onTurnError = onTurnErrorHandler;
-
-    await streamingAdapter.process(req, socket, head, (context) => myBot.run(context));
+// Endpoint que escuta as mensagens do usuário.
+server.post('/api/messages', (req, res) => {
+    adapter.processActivity(req, res, async (context) => {
+        await bot.run(context);
+    });
 });

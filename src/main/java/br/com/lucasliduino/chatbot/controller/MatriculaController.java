@@ -1,4 +1,3 @@
-// Pacote da sua aplicação (ex: com.example.chatbot.controller)
 package br.com.lucasliduino.chatbot.controller;
 
 import org.springframework.http.ResponseEntity;
