@@ -23,13 +23,14 @@ class EchoBot extends ActivityHandler {
 
         // See https://aka.ms/about-bot-activity-message to learn more about the message and other activity types.
        this.onMessage(async (context, next) => {
+            // Normaliza o texto do usuário
+            const userText = context.activity.text.toLowerCase(); 
             let replyText = '';
             const dialogContext = await this.dialogSet.createContext(context);
             const results = await dialogContext.continueDialog();
 
             // Se o diálogo já estiver ativo, não processa a mensagem
             if (results.status === DialogTurnStatus.empty) {
-                const userText = context.activity.text.toLowerCase(); // Normaliza o texto do usuário
                 // Verifica se o usuario digitou "matrícula" ou "matricula"
                 if (userText == 'matrícula' || userText == 'matricula') {
                         await dialogContext.beginDialog(this.dialog.id);
@@ -48,13 +49,15 @@ class EchoBot extends ActivityHandler {
             await this.conversationState.saveChanges(context, false);
             await this.userState.saveChanges(context, false);
 
+            // By calling next() you ensure that the next BotHandler is run.
+            await next();
 
         });
         
 
         this.onMembersAdded(async (context, next) => {
             const membersAdded = context.activity.membersAdded;
-            const welcomeText = 'Hello and welcome!';
+            const welcomeText = 'Bem vindo, em que posso ajudar?';
             for (let cnt = 0; cnt < membersAdded.length; ++cnt) {
                 if (membersAdded[cnt].id !== context.activity.recipient.id) {
                     await context.sendActivity(MessageFactory.text(welcomeText, welcomeText));
