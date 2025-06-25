@@ -1,4 +1,4 @@
-const { ComponentDialog, WaterfallDialog, TextPrompt, NumberPrompt } = require('./botbuilder-dialogs');
+const { ComponentDialog, WaterfallDialog, TextPrompt, NumberPrompt } = require('../node_modules/botbuilder-dialogs');
 const axios = require('axios'); // Para fazer a chamada para o backend
 
 // Nomes para os diálogos e prompts que usaremos
@@ -82,6 +82,7 @@ class EnrollmentDialog extends ComponentDialog {
         }
 
         // Finaliza o diálogo em cascata.
+        stepContext.prompt(TEXT_PROMPT, 'Algo mais em que posso lhe ajudar?');
         return await stepContext.endDialog();
     }
 }
